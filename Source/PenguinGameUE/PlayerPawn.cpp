@@ -9,7 +9,7 @@
 // Constructor
 APlayerPawn::APlayerPawn()
 {
- 	//Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	//Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	//Set Physics Material
@@ -114,7 +114,7 @@ void APlayerPawn::Tick(float DeltaTime)
 	}
 
 	// Set Swimming physical behaviour and Movement
-	if (playerState == SWIMMING) 
+	if (playerState == SWIMMING)
 	{
 		// Parameters
 		boxComponent->SetEnableGravity(false);
@@ -125,18 +125,20 @@ void APlayerPawn::Tick(float DeltaTime)
 
 		float normalizedSpeed = GetVelocity().SizeSquared() / (swimSpeed * swimSpeed);
 
-		if (isnan(normalizedSpeed)) niagaraComp->SetVariableFloat("User.SpawnRate", 190.0f * normalizedSpeed);
+		if (!isnan(normalizedSpeed)) niagaraComp->SetVariableFloat("User.SpawnRate", 190.0f * normalizedSpeed);
 
-		FVector hydroDrag = CalcHydroLift(CalcAlpha());
+		float alpha = CalcAlpha();
 
-		boxComponent->AddForce(hydroDrag * 30);
+		FVector hydroDrag = CalcHydroLift(alpha);
+
+		// boxComponent->AddForce(hydroDrag * 30);
 
 
 		// SWIM FORWARDS
 		if (isPressingJump) {
-			
+
 			SetFlipbookAnimation(playerFlipBooks[8], true, true);
-			if (GetVelocity().SizeSquared() < swimSpeed * swimSpeed) 
+			if (GetVelocity().SizeSquared() < swimSpeed * swimSpeed)
 			{
 				boxComponent->AddForce(GetActorUpVector() * swimStrength);
 			}
@@ -146,14 +148,14 @@ void APlayerPawn::Tick(float DeltaTime)
 		}
 	}
 	// Reset
-	else 
+	else
 	{
 		boxComponent->SetEnableGravity(true);
 		boxComponent->SetLinearDamping(0.01f);
 		boxComponent->SetAngularDamping(0.0f);
 	}
 
-	
+
 
 }
 
@@ -176,12 +178,12 @@ void APlayerPawn::OnHorizontal(float val)
 	}
 
 	// If inputs are registered
-	if (GEngine && (val > 0.1f || val < -0.1f)) 
+	if (GEngine && (val > 0.1f || val < -0.1f))
 	{
 		float mass = boxComponent->GetMass();
 
 		// WALKING
-		if (playerState == ONFEET) 
+		if (playerState == ONFEET)
 		{
 			// Only apply force if the player is slower than maximum defined speed
 			// Compares using Squared vector length
@@ -223,18 +225,18 @@ void APlayerPawn::OnHorizontal(float val)
 				// Sliding Fast Anim
 				SetFlipbookAnimation(playerFlipBooks[4], true, false);
 			}
-			else 
+			else
 			{
 				// Belly Idle Anim
 				SetFlipbookAnimation(playerFlipBooks[3], true, false);
 			}
 			UpdateFlipbookOrientation(playerState == ONBELLY_L);
 		}
-		else if (playerState == ONHEAD) 
+		else if (playerState == ONHEAD)
 		{
 			// On Head Idle Anim
 			SetFlipbookAnimation(playerFlipBooks[6], true, false);
-		} 
+		}
 	}
 }
 
@@ -246,7 +248,7 @@ void APlayerPawn::OnJump()
 	isPressingJump = true;
 
 	// JUMP
-	if (playerState == ONFEET) 
+	if (playerState == ONFEET)
 	{
 		boxComponent->AddForce(GetActorUpVector() * jumpStrength * mass * 10.0f);
 		hasJumped = true;
@@ -267,7 +269,7 @@ void APlayerPawn::OnJump()
 	}
 
 	// JUMP FROM ON HEAD
-	if (playerState == ONHEAD) 
+	if (playerState == ONHEAD)
 	{
 		boxComponent->AddForce(-GetActorUpVector() * jumpStrength * mass * 10.0f);
 		boxComponent->AddTorque(FVector(0.0f, 72500.0f * mass * 10.0f * playerFlipbookComp->GetRelativeScale3D().X, 0.0f));
@@ -286,7 +288,7 @@ void APlayerPawn::OnJumpRelease()
 void APlayerPawn::OnOverlapBegin(UPrimitiveComponent* overlappedComp, AActor* otherActor, UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& sweepResult)
 {
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("OnOverlapBegin Method Called"));
-	
+
 	niagaraComp->ActivateSystem(true);
 	inWater = true;
 }
@@ -330,7 +332,7 @@ bool APlayerPawn::SimplifiedSphereCast(FVector location, float radius)
 
 void APlayerPawn::UpdateFlipbookOrientation(bool flipSprite)
 {
-	playerFlipbookComp->SetWorldScale3D(FVector(flipSprite ? -1.0f : 1.0f , 1.0f, 1.0f));
+	playerFlipbookComp->SetWorldScale3D(FVector(flipSprite ? -1.0f : 1.0f, 1.0f, 1.0f));
 }
 
 void APlayerPawn::DetectCollisionContinuous()
@@ -404,7 +406,7 @@ float APlayerPawn::CalcAlpha()
 
 	float alpha = v.CosineAngle2D(forwards);
 
-	FVector cross = v.CrossProduct(v,forwards);
+	FVector cross = v.CrossProduct(v, forwards);
 
 	if (cross.Z < 0) {
 		return -std::acos(alpha);
@@ -417,7 +419,7 @@ FVector APlayerPawn::CalcHydroLift(float theta)
 {
 	FVector v = GetVelocity();
 
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine Theta: %f"), std::sin(theta)));
+	if (GEngine && !isnan(theta)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine Theta: %f"), std::sin(theta)));
 
 	FVector lift = FVector(-(v.Z), 0.0f, (v.X)) * std::sin(theta);
 

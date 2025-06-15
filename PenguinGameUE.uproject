@@ -5,11 +5,10 @@
 	"Description": "",
 	"Modules": [
 		{
-			"Name": "TutorialProject_002",
+			"Name": "PenguinGameUE",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Paper2D",
 				"Engine"
 			]
 		}

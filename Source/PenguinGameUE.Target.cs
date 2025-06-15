@@ -3,12 +3,12 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class TutorialProject_002Target : TargetRules
+public class PenguinGameUETarget : TargetRules
 {
-	public TutorialProject_002Target( TargetInfo Target) : base(Target)
+	public PenguinGameUETarget( TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
-		ExtraModuleNames.AddRange( new string[] { "TutorialProject_002" } );
+		ExtraModuleNames.AddRange( new string[] { "PenguinGameUE" } );
 	}
 }

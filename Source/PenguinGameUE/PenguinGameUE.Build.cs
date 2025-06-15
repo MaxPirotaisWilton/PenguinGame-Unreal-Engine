@@ -2,13 +2,13 @@
 
 using UnrealBuildTool;
 
-public class TutorialProject_002 : ModuleRules
+public class PenguinGameUE : ModuleRules
 {
-	public TutorialProject_002(ReadOnlyTargetRules Target) : base(Target)
+	public PenguinGameUE(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "PhysicsCore", "Niagara", "Paper2D"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Paper2D", "Niagara", "PhysicsCore" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

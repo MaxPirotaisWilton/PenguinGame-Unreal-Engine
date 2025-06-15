@@ -27,9 +27,8 @@ enum PenguinState {
 	ONHEAD,
 	SWIMMING
 };
-
 UCLASS()
-class TUTORIALPROJECT_002_API APlayerPawn : public APawn
+class PENGUINGAMEUE_API APlayerPawn : public APawn
 {
 	GENERATED_BODY()
 
@@ -52,7 +51,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-private: 
+private:
 
 	UFUNCTION()
 	void OnHorizontal(float val);
