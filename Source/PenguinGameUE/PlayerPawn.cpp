@@ -4,6 +4,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include <Particles/ParticleEmitter.h>
 #include <cmath>
+#include <algorithm>
 #include <DrawDebugHelpers.h>
 
 // Constructor
@@ -131,7 +132,9 @@ void APlayerPawn::Tick(float DeltaTime)
 
 		FVector hydroDrag = CalcHydroLift(alpha);
 
-		// boxComponent->AddForce(hydroDrag * 30);
+		if (GEngine && (isnan(hydroDrag.X) || isnan(hydroDrag.Z))) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating alpha: %f"), alpha));
+
+		boxComponent->AddForce(hydroDrag * 30);
 
 
 		// SWIM FORWARDS
@@ -404,24 +407,32 @@ float APlayerPawn::CalcAlpha()
 
 	FVector forwards = FVector(GetActorUpVector().X, GetActorUpVector().Z, 0.0f);
 
-	float alpha = v.CosineAngle2D(forwards);
+	float cosAlpha = v.CosineAngle2D(forwards);
 
 	FVector cross = v.CrossProduct(v, forwards);
 
-	if (cross.Z < 0) {
-		return -std::acos(alpha);
+	float alpha = std::acos(cosAlpha);
+
+	// Work around if cosAlpha is 1. Seems to throw a Nan when fed into arcCosine func
+	if (isnan(alpha)) {
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, FString::Printf(TEXT("ERROR: alpha is a NaN!!! replacing value with 0 | cosAlpha: %f"), cosAlpha));
+		alpha = 0.0f;
 	}
 
-	return std::acos(alpha);
+	if (cross.Z < 0) {
+		alpha = -alpha;
+	}
+
+	return alpha;
 }
 
 FVector APlayerPawn::CalcHydroLift(float theta)
 {
 	FVector v = GetVelocity();
 
-	if (GEngine && !isnan(theta)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine Theta: %f"), std::sin(theta)));
-
 	FVector lift = FVector(-(v.Z), 0.0f, (v.X)) * std::sin(theta);
+
+	// if (GEngine && !isnan(theta)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine theta: %f"), std::sin(theta)));
 
 	DrawDebugLine(
 		GetWorld(),
@@ -431,6 +442,8 @@ FVector APlayerPawn::CalcHydroLift(float theta)
 		false, -1, 0,
 		5.0f
 	);
+
+	// if (GEngine && !isnan(lift.X)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating Lift: X %f, Y %f, Z %f"), lift.X, lift.Y, lift.Z));
 
 	return lift;
 
