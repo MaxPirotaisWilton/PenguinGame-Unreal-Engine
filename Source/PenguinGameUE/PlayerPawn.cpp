@@ -4,7 +4,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include <Particles/ParticleEmitter.h>
 #include <cmath>
-#include <algorithm>
+#include <cassert>
 #include <DrawDebugHelpers.h>
 
 // Constructor
@@ -148,6 +148,16 @@ void APlayerPawn::Tick(float DeltaTime)
 		}
 		else {
 			SetFlipbookAnimation(playerFlipBooks[7], true, true);
+		}
+
+		if (!IsFlipbookFlipped() && GetActorRotation().Euler().Y > swimFlipAngle) {
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("unflip Sprite: %f"), GetActorRotation().Euler().Y));
+			UpdateFlipbookOrientation(true);
+		}
+
+		if (IsFlipbookFlipped() && GetActorRotation().Euler().Y < -swimFlipAngle) {
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("flip Sprite: %f"), GetActorRotation().Euler().Y));
+			UpdateFlipbookOrientation(false);
 		}
 	}
 	// Reset
@@ -338,6 +348,11 @@ void APlayerPawn::UpdateFlipbookOrientation(bool flipSprite)
 	playerFlipbookComp->SetWorldScale3D(FVector(flipSprite ? -1.0f : 1.0f, 1.0f, 1.0f));
 }
 
+bool APlayerPawn::IsFlipbookFlipped()
+{
+	return playerFlipbookComp->GetRelativeScale3D().X < 0;
+}
+
 void APlayerPawn::DetectCollisionContinuous()
 {
 	onFeetPos = -(GetActorUpVector() * boxExtents.Z) + GetActorLocation();
@@ -415,6 +430,8 @@ float APlayerPawn::CalcAlpha()
 	FVector cross = v.CrossProduct(v, forwards);
 
 	float alpha = std::acos(clampedCosAlpha);
+
+	assert(!isnan(alpha));
 
 	// Emergency work around if cosAlpha is greater than 1 and alpha turns into a NaN.
 	if (isnan(alpha)) {

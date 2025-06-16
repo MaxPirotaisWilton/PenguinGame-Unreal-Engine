@@ -66,8 +66,8 @@ private:
 
 	bool SimplifiedSphereCast(FVector location, float radius);
 	void UpdateFlipbookOrientation(bool flipSprite);
+	bool IsFlipbookFlipped();
 	void DetectCollisionContinuous();
-	//void UpdateFlipbookComponent();
 	void SetFlipbookAnimation(UPaperFlipbook* flipbook, bool looping, bool interrupts);
 	int IsFlipBookPlaying(UPaperFlipbook* flipbook);
 
@@ -111,6 +111,8 @@ private:
 	const float jumpStrength = 5000.0f;
 	const float pushStrength = 4000.0f;
 	const float swimStrength = 10000.0f;
+
+	const float swimFlipAngle = 30.0f;
 
 	FVector boxExtents = FVector(42.0f, 1.0f, 58.0f);
 
