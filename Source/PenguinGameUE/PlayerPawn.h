@@ -27,6 +27,13 @@ enum PenguinState {
 	ONHEAD,
 	SWIMMING
 };
+
+enum ButtonPressedState {
+	RELEASED,
+	ENTERED,
+	HELD
+};
+
 UCLASS()
 class PENGUINGAMEUE_API APlayerPawn : public APawn
 {
@@ -55,10 +62,15 @@ private:
 
 	UFUNCTION()
 	void OnHorizontal(float val);
+
+	void HorizontalMovement(float val);
+
 	UFUNCTION()
-	void OnJump();
+	void OnJumpButtonEnter();
 	UFUNCTION()
-	void OnJumpRelease();
+	void OnJumpButtonRelease();
+
+	void JumpMovement();
 
 	UFUNCTION()
 	void OnFlipbookAnimEnd();
@@ -108,10 +120,14 @@ private:
 	const float slidePushMaxSpeed = 550.0f;
 	const float swimSpeed = 2400.0f;
 
-	const float jumpStrength = 5000.0f;
+	const float jumpStrength = 4500.0f;
 	const float pushStrength = 4000.0f;
 	const float swimStrength = 10000.0f;
 
+	const float gettingUpStrength = 15000.0f;
+	const float reorientJumpStrength = 65000.0f;
+
+	const float bubbleSpawnRate = 250.0f;
 	const float swimFlipAngle = 30.0f;
 
 	FVector boxExtents = FVector(42.0f, 1.0f, 58.0f);
@@ -123,7 +139,11 @@ private:
 
 	bool onFeet, onHead, onBellyL, onBellyR, inWater;
 
-	bool isPressingJump, hasJumped;
+	ButtonPressedState jumpButtonState;
+	float horizontalAxis;
+
+
+	bool hasJumped;
 
 	bool nonLoopingAnimPlaying;
 

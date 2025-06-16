@@ -25,10 +25,9 @@ APlayerPawn::APlayerPawn()
 	boxComponent->SetConstraintMode(EDOFMode::XZPlane);
 	boxComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	boxComponent->SetNotifyRigidBodyCollision(true);
+	boxComponent->SetMassOverrideInKg(TEXT("BoxCollider"),10.0f,true);
 
 	boxComponent->SetBoxExtent(boxExtents, true);
-
-	if (physicalMat) boxComponent->SetPhysMaterialOverride(physicalMat);
 
 	this->SetRootComponent(boxComponent);
 
@@ -37,7 +36,7 @@ APlayerPawn::APlayerPawn()
 	springArm->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	springArm->SetRelativeRotation(FVector(0.0f, -1.0f, 0.0f).Rotation());
 	springArm->SetAbsolute(false, true, false);
-	springArm->TargetArmLength = 1500.f;
+	springArm->TargetArmLength = 2500.f;
 	springArm->bEnableCameraLag = true;
 	springArm->CameraLagSpeed = 6.0f;
 
@@ -82,6 +81,8 @@ void APlayerPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (physicalMat) boxComponent->SetPhysMaterialOverride(physicalMat);
+
 	boxComponent->OnComponentBeginOverlap.AddDynamic(this, &APlayerPawn::OnOverlapBegin);
 	boxComponent->OnComponentEndOverlap.AddDynamic(this, &APlayerPawn::OnOverlapEnd);
 
@@ -89,6 +90,10 @@ void APlayerPawn::BeginPlay()
 
 	// Setup all other variables for Sphere Tracing
 	st_ObjectTypes = { UEngineTypes::ConvertToObjectType(ECC_WorldStatic) };
+
+
+
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine theta: %f"), boxComponent->GetMass()));
 }
 
 
@@ -105,9 +110,12 @@ void APlayerPawn::Tick(float DeltaTime)
 	// If player is in Water, set State to SWIMMING
 	playerState = inWater ? SWIMMING : playerState;
 
-	//if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Playerstate: %d"), playerState));
 
 	float mass = boxComponent->GetMass();
+
+	/*if (jumpButtonState == ENTERED) {
+		JumpMovement();
+	}*/
 
 	// Rotate player when falling down if they're still holding the jump button
 	if (playerState == FALLING && hasJumped && GetVelocity().Z < 0) {
@@ -120,25 +128,20 @@ void APlayerPawn::Tick(float DeltaTime)
 		// Parameters
 		boxComponent->SetEnableGravity(false);
 		boxComponent->SetLinearDamping(0.65f);
-		boxComponent->SetAngularDamping(0.65f);
-
-		// if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating speed over max speed: %f"), (GetVelocity().SizeSquared() / (swimSpeed * swimSpeed))));
+		boxComponent->SetAngularDamping(1.5f);
 
 		float normalizedSpeed = GetVelocity().SizeSquared() / (swimSpeed * swimSpeed);
-
-		if (!isnan(normalizedSpeed)) niagaraComp->SetVariableFloat("User.SpawnRate", 190.0f * normalizedSpeed);
+		
+		niagaraComp->SetVariableFloat("User.SpawnRate", bubbleSpawnRate * normalizedSpeed);
 
 		float alpha = CalcAlpha();
 
 		FVector hydroDrag = CalcHydroLift(alpha);
 
-		if (GEngine && (isnan(hydroDrag.X) || isnan(hydroDrag.Z))) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating alpha: %f"), alpha));
-
 		boxComponent->AddForce(hydroDrag * 30);
 
-
 		// SWIM FORWARDS
-		if (isPressingJump) {
+		if (jumpButtonState != RELEASED) {
 
 			SetFlipbookAnimation(playerFlipBooks[8], true, true);
 			if (GetVelocity().SizeSquared() < swimSpeed * swimSpeed)
@@ -151,12 +154,10 @@ void APlayerPawn::Tick(float DeltaTime)
 		}
 
 		if (!IsFlipbookFlipped() && GetActorRotation().Euler().Y > swimFlipAngle) {
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("unflip Sprite: %f"), GetActorRotation().Euler().Y));
 			UpdateFlipbookOrientation(true);
 		}
 
 		if (IsFlipbookFlipped() && GetActorRotation().Euler().Y < -swimFlipAngle) {
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("flip Sprite: %f"), GetActorRotation().Euler().Y));
 			UpdateFlipbookOrientation(false);
 		}
 	}
@@ -169,21 +170,29 @@ void APlayerPawn::Tick(float DeltaTime)
 	}
 
 
-
+	if (jumpButtonState == ENTERED) {
+		jumpButtonState = HELD;
+	}
 }
 
 // Called to bind functionality to input
 void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	//Super::SetupPlayerInputComponent(PlayerInputComponent);
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &APlayerPawn::OnJump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &APlayerPawn::OnJumpRelease);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &APlayerPawn::OnJumpButtonEnter);
+	PlayerInputComponent->BindAction("Jump", IE_Released, this, &APlayerPawn::OnJumpButtonRelease);
 
 	PlayerInputComponent->BindAxis("Horizontal", this, &APlayerPawn::OnHorizontal);
 }
 
 void APlayerPawn::OnHorizontal(float val)
+{
+	horizontalAxis = val;
+	HorizontalMovement(horizontalAxis);
+}
+
+void APlayerPawn::HorizontalMovement(float val)
 {
 	if (playerState == FALLING)
 	{
@@ -212,12 +221,12 @@ void APlayerPawn::OnHorizontal(float val)
 		else if (playerState == ONBELLY_L && val > 0.1f)
 		{
 			// if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("Attempting standing up from belly Left"));
-			boxComponent->AddTorque(FVector(0.0f, 13000.0f * mass * 10.0f, 0.0f));
+			boxComponent->AddTorque(FVector(0.0f, 1.0f, 0.0f) * gettingUpStrength * mass * 10.0f);
 		}
 		else if (playerState == ONBELLY_R && val < -0.1f)
 		{
 			// if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("Attempting standing up from belly Left"));
-			boxComponent->AddTorque(FVector(0.0f, -13000.0f * mass * 10.0f, 0.0f));
+			boxComponent->AddTorque(FVector(0.0f, -1.0f, 0.0f) * gettingUpStrength * mass * 10.0f);
 		}
 		// STEER SWIMMING
 		else if (playerState == SWIMMING) {
@@ -254,23 +263,34 @@ void APlayerPawn::OnHorizontal(float val)
 }
 
 // Called on Frame of input pressed
-void APlayerPawn::OnJump()
+void APlayerPawn::OnJumpButtonEnter()
+{
+	jumpButtonState = ENTERED;
+	JumpMovement();
+}
+
+// Called on Frame of input released
+void APlayerPawn::OnJumpButtonRelease()
+{
+	hasJumped = false;
+	jumpButtonState = RELEASED;
+}
+
+void APlayerPawn::JumpMovement()
 {
 	float mass = boxComponent->GetMass();
-
-	isPressingJump = true;
 
 	// JUMP
 	if (playerState == ONFEET)
 	{
-		boxComponent->AddForce(GetActorUpVector() * jumpStrength * mass * 10.0f);
+		boxComponent->AddImpulse(GetActorUpVector() * jumpStrength);
 		hasJumped = true;
 	}
 
 	// PUSH SLIDE
 	if ((playerState == ONBELLY_L || playerState == ONBELLY_R) && GetVelocity().SizeSquared() < slidePushMaxSpeed * slidePushMaxSpeed)
 	{
-		boxComponent->AddForce(GetActorUpVector() * pushStrength * mass * 10.0f);
+		boxComponent->AddImpulse(GetActorUpVector() * pushStrength);
 
 		// Push Slide Anim
 		// Note the function is called twice:
@@ -284,41 +304,27 @@ void APlayerPawn::OnJump()
 	// JUMP FROM ON HEAD
 	if (playerState == ONHEAD)
 	{
-		boxComponent->AddForce(-GetActorUpVector() * jumpStrength * mass * 10.0f);
-		boxComponent->AddTorque(FVector(0.0f, 72500.0f * mass * 10.0f * playerFlipbookComp->GetRelativeScale3D().X, 0.0f));
+		boxComponent->AddImpulse(-GetActorUpVector() * jumpStrength);
+		boxComponent->AddAngularImpulse(FVector(0.0f, 1.0f, 0.0f) * reorientJumpStrength * playerFlipbookComp->GetRelativeScale3D().X);
 	}
-}
-
-// Called on Frame of input released
-void APlayerPawn::OnJumpRelease()
-{
-	isPressingJump = false;
-	hasJumped = false;
 }
 
 // For simplicity, all overlaps are considered to be touching water
 
 void APlayerPawn::OnOverlapBegin(UPrimitiveComponent* overlappedComp, AActor* otherActor, UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& sweepResult)
 {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("OnOverlapBegin Method Called"));
-
 	niagaraComp->ActivateSystem(true);
 	inWater = true;
 }
 
 void APlayerPawn::OnOverlapEnd(UPrimitiveComponent* overlappedComp, AActor* otherActor, UPrimitiveComponent* otherComp, int32 otherBodyIndex)
 {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("OnOverlapEnd Method Called"));
-
 	niagaraComp->Deactivate();
 	inWater = false;
 }
 
 void APlayerPawn::OnFlipbookAnimEnd()
 {
-
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, TEXT("OnFlipbookAnimEnd Method Called"));
-
 	nonLoopingAnimPlaying = false;
 }
 
