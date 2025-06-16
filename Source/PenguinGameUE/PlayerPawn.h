@@ -106,7 +106,7 @@ private:
 	const float waddleSpeed = 150.0f;
 	const float slideFastSpeed = 400.0f;
 	const float slidePushMaxSpeed = 550.0f;
-	const float swimSpeed = 2000.0f;
+	const float swimSpeed = 2400.0f;
 
 	const float jumpStrength = 5000.0f;
 	const float pushStrength = 4000.0f;
