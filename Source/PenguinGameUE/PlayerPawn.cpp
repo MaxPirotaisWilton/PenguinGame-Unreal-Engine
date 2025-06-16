@@ -412,16 +412,6 @@ void APlayerPawn::SetFlipbookAnimation(UPaperFlipbook* flipbook, bool looping, b
 	}
 }
 
-// FUNCTION NOT USED
-int APlayerPawn::IsFlipBookPlaying(UPaperFlipbook* flipbook)
-{
-	if (playerFlipbookComp->GetFlipbook() == flipbook) {
-		return (!playerFlipbookComp->IsLooping() && nonLoopingAnimPlaying);
-	}
-
-	return -1;
-}
-
 float APlayerPawn::CalcAlpha()
 {
 	FVector v = FVector(GetVelocity().X, GetVelocity().Z, 0.0f);

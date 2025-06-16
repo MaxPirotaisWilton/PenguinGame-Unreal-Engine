@@ -81,7 +81,6 @@ private:
 	bool IsFlipbookFlipped();
 	void DetectCollisionContinuous();
 	void SetFlipbookAnimation(UPaperFlipbook* flipbook, bool looping, bool interrupts);
-	int IsFlipBookPlaying(UPaperFlipbook* flipbook);
 
 	float CalcAlpha();
 	FVector CalcHydroLift(float theta);
