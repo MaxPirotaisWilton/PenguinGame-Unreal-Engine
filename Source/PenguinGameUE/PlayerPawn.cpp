@@ -409,13 +409,16 @@ float APlayerPawn::CalcAlpha()
 
 	float cosAlpha = v.CosineAngle2D(forwards);
 
+	// Make sure cosine values stay between 0 and 1
+	float clampedCosAlpha = std::min(std::max((float)0, cosAlpha), (float)1);
+
 	FVector cross = v.CrossProduct(v, forwards);
 
-	float alpha = std::acos(cosAlpha);
+	float alpha = std::acos(clampedCosAlpha);
 
-	// Work around if cosAlpha is 1. Seems to throw a Nan when fed into arcCosine func
+	// Emergency work around if cosAlpha is greater than 1 and alpha turns into a NaN.
 	if (isnan(alpha)) {
-		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, FString::Printf(TEXT("ERROR: alpha is a NaN!!! replacing value with 0 | cosAlpha: %f"), cosAlpha));
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("ERROR: alpha is a NaN!!! replacing value with 0"));
 		alpha = 0.0f;
 	}
 
