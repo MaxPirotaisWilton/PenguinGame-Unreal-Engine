@@ -7,7 +7,6 @@
 #include "Components/BoxComponent.h"
 #include <GameFramework/SpringArmComponent.h>
 #include <Camera/CameraComponent.h>
-#include "PhysicalMaterials/PhysicalMaterial.h"
 
 #include <Paper2D/Classes/PaperFlipbook.h>
 
@@ -89,10 +88,6 @@ private:
 	UPROPERTY(VisibleDefaultsOnly)
 	UBoxComponent* boxComponent;
 
-	// Physical material for player
-	UPROPERTY(VisibleDefaultsOnly)
-	UPhysicalMaterial* physicalMat;
-
 	// The player flipbook component.
 	UPROPERTY(VisibleDefaultsOnly)
 	UPaperFlipbookComponent* playerFlipbookComp;
@@ -140,7 +135,6 @@ private:
 
 	ButtonPressedState jumpButtonState;
 	float horizontalAxis;
-
 
 	bool hasJumped;
 

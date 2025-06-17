@@ -6,15 +6,13 @@
 #include <cmath>
 #include <cassert>
 #include <DrawDebugHelpers.h>
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 // Constructor
 APlayerPawn::APlayerPawn()
 {
 	//Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
-	//Set Physics Material
-	physicalMat = LoadObject<UPhysicalMaterial>(nullptr, TEXT("PhysicalMaterial'/Game/Assets/PhysMats/Penguin_PhysMat.Penguin_PhysMat'"));
 
 	//Set the Box Collision component
 	boxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollider"));
@@ -25,7 +23,6 @@ APlayerPawn::APlayerPawn()
 	boxComponent->SetConstraintMode(EDOFMode::XZPlane);
 	boxComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	boxComponent->SetNotifyRigidBodyCollision(true);
-	boxComponent->SetMassOverrideInKg(TEXT("BoxCollider"),10.0f,true);
 
 	boxComponent->SetBoxExtent(boxExtents, true);
 
@@ -33,16 +30,17 @@ APlayerPawn::APlayerPawn()
 
 	// Setup the spring arm that the camera will attach to.
 	springArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	springArm->AttachToComponent(RootComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	springArm->SetupAttachment(RootComponent);
+	// 
 	springArm->SetRelativeRotation(FVector(0.0f, -1.0f, 0.0f).Rotation());
 	springArm->SetAbsolute(false, true, false);
-	springArm->TargetArmLength = 2500.f;
+	springArm->TargetArmLength = 1500.f;
 	springArm->bEnableCameraLag = true;
 	springArm->CameraLagSpeed = 6.0f;
 
 	// Setup the camera.
 	camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	camera->AttachToComponent(springArm, FAttachmentTransformRules::KeepWorldTransform, USpringArmComponent::SocketName);
+	camera->SetupAttachment(springArm, USpringArmComponent::SocketName);
 	camera->SetWorldRotation(FVector(0.0f, -1.0f, 0.0f).Rotation());
 	camera->ProjectionMode = ECameraProjectionMode::Perspective;
 	camera->FieldOfView = 70;
@@ -61,7 +59,7 @@ APlayerPawn::APlayerPawn()
 
 	// Create the animated sprite component.
 	playerFlipbookComp = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("PlayerVisual"));
-	playerFlipbookComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	playerFlipbookComp->SetupAttachment(RootComponent);
 	playerFlipbookComp->SetFlipbook(playerFlipBooks[1]);
 	playerFlipbookComp->SetRelativeLocation(FVector(0.0f));
 	playerFlipbookComp->SetRelativeScale3D(FVector(1.0f));
@@ -69,7 +67,7 @@ APlayerPawn::APlayerPawn()
 	niagaraSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("NiagaraSystem'/Game/Assets/ParticleSystem/ns_PlayerBubbles.ns_PlayerBubbles'"));
 
 	niagaraComp = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraParticleSystem"));
-	niagaraComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	niagaraComp->SetupAttachment(RootComponent);
 	niagaraComp->SetAsset(niagaraSystem, true);
 	niagaraComp->SetWorldLocation(FVector(0.0f, -1.0f, 0.0f));
 	niagaraComp->Deactivate();
@@ -81,8 +79,12 @@ void APlayerPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (physicalMat) boxComponent->SetPhysMaterialOverride(physicalMat);
+	//Set Physics Material
+	UPhysicalMaterial* physicalMat = LoadObject<UPhysicalMaterial>(nullptr, TEXT("PhysicalMaterial'/Game/Assets/PhysMats/Penguin_PhysMat.Penguin_PhysMat'"));
 
+	if (physicalMat && !HasAnyFlags(RF_ClassDefaultObject)) boxComponent->SetPhysMaterialOverride(physicalMat);
+
+	boxComponent->SetMassOverrideInKg(TEXT("BoxCollider"), 10.0f, true);
 	boxComponent->OnComponentBeginOverlap.AddDynamic(this, &APlayerPawn::OnOverlapBegin);
 	boxComponent->OnComponentEndOverlap.AddDynamic(this, &APlayerPawn::OnOverlapEnd);
 
@@ -96,11 +98,12 @@ void APlayerPawn::BeginPlay()
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine theta: %f"), boxComponent->GetMass()));
 }
 
-
 // Called every frame
 void APlayerPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	
 
 	// Detect which side is colliding with the player with Sphere Casts and 
 	// updates their state. Otherwise player is deemed to be FALLING.
@@ -448,18 +451,14 @@ FVector APlayerPawn::CalcHydroLift(float theta)
 
 	FVector lift = FVector(-(v.Z), 0.0f, (v.X)) * std::sin(theta);
 
-	// if (GEngine && !isnan(theta)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating sine theta: %f"), std::sin(theta)));
-
-	DrawDebugLine(
+	/*DrawDebugLine(
 		GetWorld(),
 		GetActorLocation(),
 		GetActorLocation() + lift,
 		FColor(0, 255, 0),
 		false, -1, 0,
 		5.0f
-	);
-
-	// if (GEngine && !isnan(lift.X)) GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::White, FString::Printf(TEXT("Calculating Lift: X %f, Y %f, Z %f"), lift.X, lift.Y, lift.Z));
+	);*/
 
 	return lift;
 
